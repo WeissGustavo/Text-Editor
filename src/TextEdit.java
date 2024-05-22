@@ -57,7 +57,7 @@ public class TextEdit extends JPanel implements KeyListener {
         ry = (float) 3 * getHeight() / 4;
         if(!this.content.toString().isEmpty()) {
 
-            TreeMap<Integer, TextLayout> layoutTreeMap = new TreeMap<>();
+            TreeMap<Integer, IndexedTextLayout> layoutTreeMap = new TreeMap<>();
             AttributedCharacterIterator paragraph = new AttributedString(this.content.toString()).getIterator();
             int paragraphStart = paragraph.getBeginIndex();
             int paragraphEnd = paragraph.getEndIndex();
@@ -67,6 +67,7 @@ public class TextEdit extends JPanel implements KeyListener {
             float drawPosY = 0;
             lineMeasurer.setPosition(paragraphStart);
 
+            int index = 1;
             while (lineMeasurer.getPosition() < paragraphEnd) {
                 int layoutStartIndex = lineMeasurer.getPosition();
                 int next = lineMeasurer.nextOffset(breakWidth);
@@ -83,7 +84,7 @@ public class TextEdit extends JPanel implements KeyListener {
 
                 TextLayout layout = lineMeasurer.nextLayout(breakWidth,limit,false);
 
-                layoutTreeMap.put(layoutStartIndex, layout);
+                layoutTreeMap.put(layoutStartIndex, new IndexedTextLayout(index,layout));
 
                 float drawPosX = layout.isLeftToRight() ? 0 : breakWidth - layout.getAdvance();
                 AffineTransform at = AffineTransform.getTranslateInstance(drawPosX, drawPosY);
@@ -91,16 +92,20 @@ public class TextEdit extends JPanel implements KeyListener {
                 layout.draw((Graphics2D) g, drawPosX, drawPosY);
                 g.setColor(getForeground());
                 drawPosY += layout.getDescent() + layout.getLeading();
+                index++;
             }
 
             if(!layoutTreeMap.isEmpty()){
-                Entry<Integer,TextLayout> currentLayoutEntry = layoutTreeMap.floorEntry(cursorPosition);
-                TextLayout currentLayout = currentLayoutEntry.getValue();
+                Entry<Integer,IndexedTextLayout> currentLayoutEntry = layoutTreeMap.floorEntry(cursorPosition);
+                IndexedTextLayout currentLayout = currentLayoutEntry.getValue();
                 int cursorPositionOffset = cursorPosition - currentLayoutEntry.getKey();
-                AffineTransform at = AffineTransform.getTranslateInstance(currentLayout.getBounds().getX(), currentLayout.getBounds().getY());
+                AffineTransform at = AffineTransform.getTranslateInstance(0, currentLayout.getLayout().getBounds().getHeight());
 
-                Shape[] carets = currentLayout.getCaretShapes(cursorPositionOffset);
+                Shape[] carets = currentLayout.getLayout().getCaretShapes(cursorPositionOffset);
                 Shape caret = at.createTransformedShape(carets[0]);
+                caret.getBounds().setLocation(caret.getBounds().x,  (int) (currentLayout.getIndex() * currentLayout.getLayout().getDescent() + currentLayout.getLayout().getLeading()));
+                System.out.println(caret.getBounds().y);
+                System.out.println(currentLayout.getIndex() * currentLayout.getLayout().getDescent() + currentLayout.getLayout().getLeading());
                 g2.setColor(getForeground());
                 g2.draw(caret);
             }
